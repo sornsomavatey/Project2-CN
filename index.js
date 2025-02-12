@@ -65,8 +65,9 @@ app.get('/search', async (req, res) => {
 
 // Profile update
 app.put('/update-profile', async (req, res) => {
-  const { sid, newPassword } = req.body;
-  const user = await Student.findOneAndUpdate({ sid }, { spass: newPassword }, { new: true });
+  const { sid } = req.body;
+  const updates = req.params;
+  const user = await Student.findOneAndUpdate({ sid }, updates, { new: true });
   if (user) {
     res.status(200).send('Profile updated successfully');
   } else {
