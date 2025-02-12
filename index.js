@@ -75,13 +75,18 @@ app.put('/update-profile', async (req, res) => {
   }
 });
 
-// Delete user
+// Delete Student - DELETE Method
 app.delete('/delete-user', async (req, res) => {
-  const { sid } = req.body;
-  const result = await Student.deleteOne({ sid });
-  if (result.deletedCount > 0) {
-    res.status(200).send('User deleted successfully');
-  } else {
-    res.status(404).send('User not found');
+  const { sid } = req.body; // Make sure you're passing sid in the request body
+
+  try {
+    const deletedUser = await Student.findOneAndDelete({ sid });
+    if (deletedUser) {
+      res.status(200).send('User deleted successfully');
+    } else {
+      res.status(404).send('User not found');
+    }
+  } catch (error) {
+    res.status(500).send('Error deleting user');
   }
 });
