@@ -4,7 +4,7 @@ const mongoose = require('mongoose');
 const app = express();
 app.use(express.json()); // for parsing application/json
 
-const port = 3000;
+const port = 80;
 
 app.listen(port, '0.0.0.0', () => {
   console.log(`Server running on http://localhost:${port}`);
@@ -29,64 +29,79 @@ const studentSchema = new mongoose.Schema({
 // **Fix: Create a Mongoose Model**
 const Student = mongoose.model('Student', studentSchema);
 
-// Registration - Post method
+// Student Registration (POST /register)
 app.post('/register', async (req, res) => {
   const { sid, sname, semail, spass } = req.body;
   try {
-    const newStudent = new Student({ sid, sname, semail, spass });
-    await newStudent.save(); // Save to MongoDB
-    res.status(201).send('User registered successfully');
-  } catch (error) {
-    res.status(400).send('Error registering user');
+    const existingStudent = await Student.findOne({ $or: [{ sid }, { email }] });
+    if (existingStudent) {
+      return res.status(400).json(createResponse(400, "Student already exists."));
+    }
+    const student = new Student({ sid, sname, semail, spass });
+    await student.save();
+    res.status(201).json(createResponse(200, "Student registered successfully.", { student }));
+  } catch (err) {
+    res.status(500).json(createResponse(500, "Error registering student.", { error: err.message }));
   }
 });
 
-// Login - Post method
+
+// Student Login (POST /login)
 app.post('/login', async (req, res) => {
   const { sid, spass } = req.body;
-  const user = await Student.findOne({ sid, spass });
-  if (user) {
-    res.status(200).send('Login successful');
-  } else {
-    res.status(401).send('Invalid credentials');
-  }
-});
-
-// Search - Get method
-app.get('/search', async (req, res) => {
-  const { sid } = req.query;
-  const user = await Student.findOne({ sid });
-  if (user) {
-    res.status(200).json(user);
-  } else {
-    res.status(404).send('User not found');
-  }
-});
-
-// Profile update
-app.put('/update-profile', async (req, res) => {
-  const { sid } = req.body;
-  const updates = req.params;
-  const user = await Student.findOneAndUpdate({ sid }, updates, { new: true });
-  if (user) {
-    res.status(200).send('Profile updated successfully');
-  } else {
-    res.status(404).send('User not found');
-  }
-});
-
-// Delete Student - DELETE Method
-app.delete('/delete-user', async (req, res) => {
-  const { sid } = req.body; // Make sure you're passing sid in the request body
-
   try {
-    const deletedUser = await Student.findOneAndDelete({ sid });
-    if (deletedUser) {
-      res.status(200).send('User deleted successfully');
-    } else {
-      res.status(404).send('User not found');
+    const student = await Student.findOne({ sid });
+    if (!student || student.spass !== spass) {
+      return res.status(401).json(createResponse(401, "Invalid credentials."));
     }
-  } catch (error) {
-    res.status(500).send('Error deleting user');
+    res.status(200).json(createResponse(200, "Login successful.", { student }));
+  } catch (err) {
+    res.status(500).json(createResponse(500, "Error logging in.", { error: err.message }));
   }
 });
+
+// Search Student by ID (GET /search/:sid)
+app.get('/search/:sid', async (req, res) => {
+  const { sid } = req.params;
+  try {
+    const student = await Student.findOne({ sid });
+    if (!student) {
+      return res.status(404).json(createResponse(404, "Student not found."));
+    }
+    res.status(200).json(createResponse(200, "Student found.", { student }));
+  } catch (err) {
+    res.status(500).json(createResponse(500, "Error searching student.", { error: err.message }));
+  }
+});
+
+
+// Update Student Profile (PUT /update/:sid)
+app.put('/update/:sid', async (req, res) => {
+  const { sid } = req.params;
+  const updates = req.body;
+  try {
+    const student = await Student.findOneAndUpdate({ sid }, updates, { new: true });
+    if (!student) {
+      return res.status(404).json(createResponse(404, "Student not found."));
+    }
+    res.status(200).json(createResponse(200, "Profile updated successfully.", { student }));
+  } catch (err) {
+    res.status(500).json(createResponse(500, "Error updating profile.", { error: err.message }));
+  }
+});
+
+// Delete Student (DELETE /delete/:sid)
+app.delete('/delete/:sid', async (req, res) => {
+  const { sid } = req.params;
+  try {
+    const student = await Student.findOneAndDelete({ sid });
+    if (!student) {
+      return res.status(404).json(createResponse(404, "Student not found."));
+    }
+    res.status(200).json(createResponse(200, "Student deleted successfully."));
+  } catch (err) {
+    res.status(500).json(createResponse(500, "Error deleting student.", { error: err.message }));
+  }
+});
+
+
